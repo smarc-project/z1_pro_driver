@@ -1,4 +1,4 @@
-#!/usr/bin/env python3 
+#!/usr/bin/env python3
 
 import rclpy
 from rclpy.node import Node
@@ -10,6 +10,7 @@ import binascii
 import time
 import struct
 
+# FIXME: This might need to be changed for parameters.
 GCU_IP = "192.168.2.210"
 TCP_PORT = 2332
 RECONNECT_DELAY = 5  # seconds
@@ -24,14 +25,18 @@ class GimbalReadAndPublish(Node):
     def __init__(self):
         super().__init__('read_and_publish')
 
+        self.declare_parameter("gimbal_ctrl_topic", "gimbal_ctrl")
+        self.declare_parameter("gimbal_feedback_topic", "gimbal_feedback")
+        ctrl_topic = self.get_parameter("gimbal_ctrl_topic").value
+        feedback_topic = self.get_parameter("gimbal_feedback_topic").value
+
         # Create publisher
-        self.publisher_ = self.create_publisher(Gcudata, 'cam_gcu_data', 10)
+        self.publisher_ = self.create_publisher(Gcudata, feedback_topic, 10)
         timer_period = 1 / 50  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         # Create subscriber
-        self.subscription = self.create_subscription(Vector3,
-                                                     "desired_gimbal_euler",
+        self.subscription = self.create_subscription(Vector3, ctrl_topic,
                                                      self.listener_callback,
                                                      10)
         self.subscription  # prevent unused variable warning

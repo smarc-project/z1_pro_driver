@@ -7,10 +7,19 @@ import os
 
 
 def generate_launch_description():
+    # ------- TODO: Set up your topic names here. -----------
+    cmd_topic = "gimbal_cam_cmd"  # Input high-level CamCmd topic.
+    gimbal_ctrl_topic = "gimbal_ctrl"  # Output low-level ctrl topic.
+    gimbal_feedback_topic = "gimbal_feedback"  # Feedback from gimbal/camera topic.
+    odom_topic = "smarc/odom"  # Odometry topic (orientation).
+    geopoint_topic = "smarc/latlon"  # Global position topic.
+
+    # -------------------------------------------------------
+
     # Namespace as command line argument.
     namespace_arg = DeclareLaunchArgument(
         "namespace", default_value="", description="Namespace for the nodes.")
-    ns = LaunchConfiguration("namespace")
+    ns = [LaunchConfiguration("namespace"), "/gimbal"]
 
     pkg_share = get_package_share_directory("z1_pro_driver")
     urdf_path = os.path.join(pkg_share, "urdf", "z1_pro_camera.urdf")
@@ -19,6 +28,7 @@ def generate_launch_description():
         robot_description = f.read()
 
     return LaunchDescription([
+        namespace_arg,
         # Launch robot state publisher and gimbal joint publisher,
         Node(
             package="robot_state_publisher",
@@ -36,7 +46,7 @@ def generate_launch_description():
             namespace=ns,
             output="screen",
             parameters=[{
-                # TODO: add joint and topic names here.
+                "gimbal_feedback_topic": gimbal_feedback_topic,
             }],
         ),
 
@@ -47,7 +57,8 @@ def generate_launch_description():
             namespace=ns,
             output="screen",
             parameters=[{
-                # TODO: add topic names here.
+                "gimbal_ctrl_topic": gimbal_ctrl_topic,
+                "gimbal_feedback_topic": gimbal_feedback_topic,
             }],
         ),
         Node(
@@ -56,7 +67,10 @@ def generate_launch_description():
             namespace=ns,
             output="screen",
             parameters=[{
-                # TODO: add topic names here.
+                "cmd_topic": cmd_topic,
+                "gimbal_ctrl_topic": gimbal_ctrl_topic,
+                "odom_topic": odom_topic,
+                "geopoint_topic": geopoint_topic
             }],
         ),
     ])

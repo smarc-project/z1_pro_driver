@@ -2,7 +2,7 @@
 <robot name="z1_pro_camera">
 
   <!-- Base that is attached to the robot. -->
-  <link name="/gimbal_base">
+  <link name="/base">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="0.5"/>
@@ -15,16 +15,16 @@
   </link>
 
   <!-- Yaw frame, same as the base. -->
-  <link name="/gimbal_yaw_link">
+  <link name="/yaw_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><box size="0.02 0.02 0.02"/></geometry>
     </visual>
   </link>
 
-  <joint name="gimbal_yaw_joint" type="revolute">
-    <parent link="/gimbal_base"/>
-    <child link="/gimbal_yaw_link"/>
+  <joint name="yaw_joint" type="revolute">
+    <parent link="/base"/>
+    <child link="/yaw_link"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
     <axis xyz="0 0 1"/>  <!-- yaw about Z -->
     <!-- TODO: This I don't know for sure... -->
@@ -32,32 +32,32 @@
   </joint>
 
   <!-- Roll frame, attached to yaw frame. -->
-  <link name="/gimbal_roll_link">
+  <link name="/roll_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><box size="0.03 0.03 0.03"/></geometry>
     </visual>
   </link>
 
-  <joint name="gimbal_roll_joint" type="revolute">
-    <parent link="/gimbal_yaw_link"/>
-    <child link="/gimbal_roll_link"/>
+  <joint name="roll_joint" type="revolute">
+    <parent link="/yaw_link"/>
+    <child link="/roll_link"/>
     <origin xyz="-0.01127 0 0.02163" rpy="0 -0.3490 0"/> <!-- 20 degree angle. -->
     <axis xyz="1 0 0"/>  <!-- roll about X -->
     <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="2.0"/>
   </joint>
 
   <!-- Pitch frame, attached to roll frame. -->
-  <link name="/gimbal_pitch_link">
+  <link name="/pitch_link">
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry><box size="0.02 0.02 0.02"/></geometry>
     </visual>
   </link>
 
-  <joint name="gimbal_pitch_joint" type="revolute">
-    <parent link="/gimbal_roll_link"/>
-    <child link="/gimbal_pitch_link"/>
+  <joint name="pitch_joint" type="revolute">
+    <parent link="/roll_link"/>
+    <child link="/pitch_link"/>
     <origin xyz="0.02096 0.0194 0.00736" rpy="0 0.3490 0"/>
     <axis xyz="0 1 0"/>  <!-- pitch about Y -->
     <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="2.0"/>
@@ -73,7 +73,7 @@
   </link>
 
   <joint name="camera_joint" type="fixed">
-    <parent link="/gimbal_pitch_link"/>
+    <parent link="/pitch_link"/>
     <child link="/camera_link"/>
     <origin xyz="0 -0.0261 0" rpy="0 0 0"/>
   </joint>

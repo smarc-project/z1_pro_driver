@@ -16,18 +16,19 @@ class GimbalJointPublisher : public rclcpp::Node {
   GimbalJointPublisher() : Node("gimbal_joint_publisher") {
 
     // TODO: get link names and topic names.
-    //this->declare_parameter<double>("publish_rate_hz", 50.0);
+    this->declare_parameter<std::string>("gimbal_feedback_topic");
+    const std::string feedback_topic =
+        this->get_parameter("gimbal_feedback_topic").as_string();
 
     joint_pub_ = this->create_publisher<sensor_msgs::msg::JointState>(
         "joint_states", 10);
 
     gcudata_sub_ = this->create_subscription<z1_pro_msgs::msg::Gcudata>(
-        "cam_gcu_data", 10,
+        feedback_topic, 10,
         std::bind(&GimbalJointPublisher::GcudataCallback, this,
                   std::placeholders::_1));
 
-    joint_msg_.name = {"gimbal_yaw_joint", "gimbal_roll_joint",
-                       "gimbal_pitch_joint"};
+    joint_msg_.name = {"yaw_joint", "roll_joint", "pitch_joint"};
     joint_msg_.position = {0.0, 0.0, 0.0};
 
     // Setup a timer to publish the states faster than the camera's feedback.

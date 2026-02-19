@@ -25,28 +25,42 @@ class GimbalInterface : public rclcpp::Node {
  public:
   GimbalInterface() : Node("gimbal_interface_node") {
 
+    // Get topic names.
+    this->declare_parameter<std::string>("cmd_topic");
+    this->declare_parameter<std::string>("gimbal_ctrl_topic");
+    this->declare_parameter<std::string>("odom_topic");
+    this->declare_parameter<std::string>("geopoint_topic");
+    const std::string cam_cmd_topic =
+        this->get_parameter("cmd_topic").as_string();
+    const std::string ctrl_topic =
+        this->get_parameter("gimbal_ctrl_topic").as_string();
+    const std::string odom_topic =
+        this->get_parameter("odom_topic").as_string();
+    const std::string geopoint_topic =
+        this->get_parameter("geopoint_topic").as_string();
+
     cam_angles_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>(
-        "desired_gimbal_euler", 10);
+        ctrl_topic, 10);
 
     cam_cmd_sub_ = this->create_subscription<z1_pro_msgs::msg::CamCmd>(
-        "gimbal_cam_cmd", 10,
+        cam_cmd_topic, 10,
         std::bind(&GimbalInterface::CamCmdCallback, this,
                   std::placeholders::_1));
 
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        "smarc/odom", 10,
+        odom_topic, 10,
         std::bind(&GimbalInterface::OdometryCallback, this,
                   std::placeholders::_1));
 
     geopoint_sub_ = this->create_subscription<geographic_msgs::msg::GeoPoint>(
-        "smarc/latlon", 10,
+        geopoint_topic, 10,
         std::bind(&GimbalInterface::GeoPointCallback, this,
                   std::placeholders::_1));
 
-    // FIXME: publishing rate?
+    // FIXME: publishing rate fixed to 50Hz.
     // Timer for checking for and publishing updates..
     publish_timer_ = this->create_wall_timer(
-        100ms, std::bind(&GimbalInterface::PublishTimerCallback, this));
+        20ms, std::bind(&GimbalInterface::PublishTimerCallback, this));
 
   }
 
@@ -97,7 +111,6 @@ class GimbalInterface : public rclcpp::Node {
   // Check which message fields have changed between callbacks.
   void _check_delta_msg(const z1_pro_msgs::msg::CamCmd::SharedPtr msg,
                         std::vector<int>& changes) {
-    std::cout << "Got a new message!\n";
     // Check roll, pitch, yaw.
     changes.push_back((prev_cmd_msg->roll == msg->roll ) ? 0 : 1);
     changes.push_back((prev_cmd_msg->pitch == msg->pitch ) ? 0 : 1);
@@ -109,21 +122,14 @@ class GimbalInterface : public rclcpp::Node {
     // Check POI change.
     int lat_change =
         (prev_cmd_msg->poi.latitude == msg->poi.latitude ) ? 0 : 1;
-    std::cout << "lat change: " << lat_change << "\n";
     int lon_change =
         (prev_cmd_msg->poi.longitude == msg->poi.longitude ) ? 0 : 1;
-    std::cout << "lon change: " << lon_change << "\n";
     int alt_change =
         (prev_cmd_msg->poi.altitude == msg->poi.altitude ) ? 0 : 1;
-    std::cout << "alt change: " << alt_change << "\n";
     changes.push_back(lat_change || lon_change || alt_change);
 
     // TODO: channel and resolution?
-    std::cout << "Computed all the changes:\n";
-    for (size_t i = 0; i < changes.size(); ++i){
-      std::cout << changes[i] << "\n";
-    }
-
+    
     prev_cmd_msg = msg;
   }
 
@@ -136,7 +142,6 @@ class GimbalInterface : public rclcpp::Node {
     bool northp;
     GeographicLib::UTMUPS::Forward(msg->poi.latitude, msg->poi.longitude, zone,
                                    northp, x_poi, y_poi);
-    std::cout << "poi callback: " << x_poi << ", " << y_poi << "\n";
     z_poi = msg->poi.altitude;
 
     tracking_poi_ = true;
@@ -153,12 +158,6 @@ class GimbalInterface : public rclcpp::Node {
     const Eigen::Matrix3d e_rot_w = w_rot_e_.toRotationMatrix().transpose();
     Eigen::Vector3d e_trans_poi_e =
         -e_rot_w * w_trans_e_w_ + e_rot_w * w_trans_poi_w;
-
-    std::cout << "Tracking POI\n";
-    std::cout << "Own coords:\n" << w_trans_e_w_ << "\n";  
-    std::cout << "Target coords:\n" << w_trans_poi_w << "\n";  
-    std::cout << "Relative coords:\n" << e_trans_poi_e << "\n";
-
     const double yaw =
         std::atan2(e_trans_poi_e(1), e_trans_poi_e(0)) * 180.0 / M_PI;
     const double pitch =
@@ -167,12 +166,11 @@ class GimbalInterface : public rclcpp::Node {
                               e_trans_poi_e(1) * e_trans_poi_e(1))) *
         180.0 / M_PI;
     // Limit.
-    desired_yaw = (std::abs(yaw) <= max_yaw)
-                      ? yaw 
-                      : max_yaw * (yaw / std::abs(yaw));
+    desired_yaw =
+        (std::abs(yaw) <= max_yaw) ? yaw : max_yaw * (yaw / std::abs(yaw));
     desired_pitch = (std::abs(pitch) <= max_pitch)
-                      ? pitch 
-                      : max_pitch * (pitch / std::abs(pitch));
+                        ? pitch
+                        : max_pitch * (pitch / std::abs(pitch));
 
     tracking_poi_ = true;
   }
@@ -294,7 +292,6 @@ class GimbalInterface : public rclcpp::Node {
     GeographicLib::UTMUPS::Forward(msg->latitude, msg->longitude, zone, northp,
                                    x_pos, y_pos);
 
-    std::cout << "lalon callback: " << x_pos << ", " << y_pos << "\n";
     // FIXME: Hardcoded altitude to zero.
     w_trans_e_w_ = Eigen::Vector3d(x_pos, y_pos, 0.0);
   }
