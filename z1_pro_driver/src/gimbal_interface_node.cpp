@@ -30,6 +30,7 @@ class GimbalInterface : public rclcpp::Node {
     this->declare_parameter<std::string>("gimbal_ctrl_topic");
     this->declare_parameter<std::string>("odom_topic");
     this->declare_parameter<std::string>("geopoint_topic");
+    this->declare_parameter<bool>("use_vehicle_altitude", false);
     const std::string cam_cmd_topic =
         this->get_parameter("cmd_topic").as_string();
     const std::string ctrl_topic =
@@ -38,9 +39,11 @@ class GimbalInterface : public rclcpp::Node {
         this->get_parameter("odom_topic").as_string();
     const std::string geopoint_topic =
         this->get_parameter("geopoint_topic").as_string();
+    use_vehicle_altitude_ =
+        this->get_parameter("use_vehicle_altitude").as_bool();
 
-    cam_angles_pub_ = this->create_publisher<geometry_msgs::msg::Vector3>(
-        ctrl_topic, 10);
+    cam_angles_pub_ =
+        this->create_publisher<geometry_msgs::msg::Vector3>(ctrl_topic, 10);
 
     cam_cmd_sub_ = this->create_subscription<z1_pro_msgs::msg::CamCmd>(
         cam_cmd_topic, 10,
@@ -72,28 +75,29 @@ class GimbalInterface : public rclcpp::Node {
   int FRAME = 3;
   int POI = 4;
 
-  // FIXME: I don't know the real limits. Limits for the camera angles.
-  double max_roll = 20.0;  // [deg]
-  double max_pitch = 20.0; // [deg] 
-  double max_yaw = 150.0;  // [deg]
+  // Limits for the camera angles.
+  double MAX_ROLL = 50.0;   // [deg]
+  double MAX_PITCH = 100.0; // [deg]
+  double MAX_YAW = 150.0;   // [deg]
 
   // Track the state of Evolo.
   Eigen::Vector3d w_trans_e_w_ = Eigen::Vector3d(0, 0, 0); // [m] UTM position.
   Eigen::Quaterniond w_rot_e_ = Eigen::Quaterniond(1, 0, 0, 0);
+  bool use_vehicle_altitude_ = false;
 
   // Track the desired control output for the camera.
-  double desired_roll = 0.0;   // [rad]
-  double desired_pitch = 0.0;  // [rad]
-  double desired_yaw = 0.0;    // [rad]
+  double desired_roll_ = 0.0;   // [rad]
+  double desired_pitch_ = 0.0;  // [rad]
+  double desired_yaw_ = 0.0;    // [rad]
 
   // Track POI.
-  double x_poi; // [m] UTM X position of the POI.
-  double y_poi; // [m] UTM y position of the POI.
-  double z_poi; // [m] UTM z position of the POI.
+  double x_poi_; // [m] UTM X position of the POI.
+  double y_poi_; // [m] UTM y position of the POI.
+  double z_poi_; // [m] UTM z position of the POI.
   bool tracking_poi_ = false;
 
   // Keep track of the last CamCmd message sent.
-  z1_pro_msgs::msg::CamCmd::SharedPtr prev_cmd_msg;
+  z1_pro_msgs::msg::CamCmd::SharedPtr prev_cmd_msg_;
   bool camera_init_ = false;
 
   Eigen::Matrix3d R_NED_to_ENU =
@@ -112,25 +116,25 @@ class GimbalInterface : public rclcpp::Node {
   void _check_delta_msg(const z1_pro_msgs::msg::CamCmd::SharedPtr msg,
                         std::vector<int>& changes) {
     // Check roll, pitch, yaw.
-    changes.push_back((prev_cmd_msg->roll == msg->roll ) ? 0 : 1);
-    changes.push_back((prev_cmd_msg->pitch == msg->pitch ) ? 0 : 1);
-    changes.push_back((prev_cmd_msg->yaw == msg->yaw ) ? 0 : 1);
+    changes.push_back((prev_cmd_msg_->roll == msg->roll ) ? 0 : 1);
+    changes.push_back((prev_cmd_msg_->pitch == msg->pitch ) ? 0 : 1);
+    changes.push_back((prev_cmd_msg_->yaw == msg->yaw ) ? 0 : 1);
 
     // Check frame change.
-    changes.push_back((prev_cmd_msg->frame == msg->frame) ? 0 : 1);
+    changes.push_back((prev_cmd_msg_->frame == msg->frame) ? 0 : 1);
 
     // Check POI change.
     int lat_change =
-        (prev_cmd_msg->poi.latitude == msg->poi.latitude ) ? 0 : 1;
+        (prev_cmd_msg_->poi.latitude == msg->poi.latitude ) ? 0 : 1;
     int lon_change =
-        (prev_cmd_msg->poi.longitude == msg->poi.longitude ) ? 0 : 1;
+        (prev_cmd_msg_->poi.longitude == msg->poi.longitude ) ? 0 : 1;
     int alt_change =
-        (prev_cmd_msg->poi.altitude == msg->poi.altitude ) ? 0 : 1;
+        (prev_cmd_msg_->poi.altitude == msg->poi.altitude ) ? 0 : 1;
     changes.push_back(lat_change || lon_change || alt_change);
 
     // TODO: channel and resolution?
     
-    prev_cmd_msg = msg;
+    prev_cmd_msg_ = msg;
   }
 
 
@@ -141,8 +145,8 @@ class GimbalInterface : public rclcpp::Node {
     int zone;
     bool northp;
     GeographicLib::UTMUPS::Forward(msg->poi.latitude, msg->poi.longitude, zone,
-                                   northp, x_poi, y_poi);
-    z_poi = msg->poi.altitude;
+                                   northp, x_poi_, y_poi_);
+    z_poi_ = msg->poi.altitude;
 
     tracking_poi_ = true;
   }
@@ -152,7 +156,7 @@ class GimbalInterface : public rclcpp::Node {
   // Update desired angles wrt our current position and the POI.
   void _track_poi(){
 
-    const Eigen::Vector3d w_trans_poi_w(x_poi, y_poi, z_poi);
+    const Eigen::Vector3d w_trans_poi_w(x_poi_, y_poi_, z_poi_);
 
     // Relative position vector.
     const Eigen::Matrix3d e_rot_w = w_rot_e_.toRotationMatrix().transpose();
@@ -166,11 +170,11 @@ class GimbalInterface : public rclcpp::Node {
                               e_trans_poi_e(1) * e_trans_poi_e(1))) *
         180.0 / M_PI;
     // Limit.
-    desired_yaw =
-        (std::abs(yaw) <= max_yaw) ? yaw : max_yaw * (yaw / std::abs(yaw));
-    desired_pitch = (std::abs(pitch) <= max_pitch)
+    desired_yaw_ =
+        (std::abs(yaw) <= MAX_YAW) ? yaw : MAX_YAW * (yaw / std::abs(yaw));
+    desired_pitch_ = (std::abs(pitch) <= MAX_PITCH)
                         ? pitch
-                        : max_pitch * (pitch / std::abs(pitch));
+                        : MAX_PITCH * (pitch / std::abs(pitch));
 
     tracking_poi_ = true;
   }
@@ -193,9 +197,9 @@ class GimbalInterface : public rclcpp::Node {
     }
 
     // Limit.
-    desired_roll = (std::abs(roll) <= max_roll)
+    desired_roll_ = (std::abs(roll) <= MAX_ROLL)
                        ? roll
-                       : max_roll * (roll / std::abs(roll));
+                       : MAX_ROLL * (roll / std::abs(roll));
   }
 
   // -----------------------------------------------------------------------
@@ -214,9 +218,9 @@ class GimbalInterface : public rclcpp::Node {
       pitch = msg->pitch;
     }
     // Limit.
-    desired_pitch = (std::abs(pitch) <= max_pitch)
+    desired_pitch_ = (std::abs(pitch) <= MAX_PITCH)
                         ? pitch
-                        : max_pitch * (pitch / std::abs(pitch));
+                        : MAX_PITCH * (pitch / std::abs(pitch));
   }
 
   // -----------------------------------------------------------------------
@@ -237,9 +241,9 @@ class GimbalInterface : public rclcpp::Node {
       yaw = msg->yaw;
     }
     // Limit.
-    desired_yaw = (std::abs(yaw) <= max_yaw)
+    desired_yaw_ = (std::abs(yaw) <= MAX_YAW)
                       ? yaw 
-                      : max_yaw * (yaw / std::abs(yaw));
+                      : MAX_YAW * (yaw / std::abs(yaw));
 
     // Yaw cmd overrides POI.
     tracking_poi_ = false;
@@ -249,7 +253,7 @@ class GimbalInterface : public rclcpp::Node {
   // Update the desired control message.
   void CamCmdCallback(const z1_pro_msgs::msg::CamCmd::SharedPtr msg) {
     if (!camera_init_){
-      prev_cmd_msg = msg;
+      prev_cmd_msg_ = msg;
       camera_init_ = true;
     }
 
@@ -276,7 +280,7 @@ class GimbalInterface : public rclcpp::Node {
     // Always track user's roll.
     _update_roll(msg);
 
-    // FIXME: Always update channel and resolution.
+    // TODO: Always update channel and resolution.
     //channel = msg.channel;
     //resolution = msg.resolution;
   }
@@ -292,8 +296,12 @@ class GimbalInterface : public rclcpp::Node {
     GeographicLib::UTMUPS::Forward(msg->latitude, msg->longitude, zone, northp,
                                    x_pos, y_pos);
 
-    // FIXME: Hardcoded altitude to zero.
-    w_trans_e_w_ = Eigen::Vector3d(x_pos, y_pos, 0.0);
+    // 2D position if no altitude is required.
+    if (use_vehicle_altitude_){
+      w_trans_e_w_ = Eigen::Vector3d(x_pos, y_pos, msg->altitude);
+    }else {
+      w_trans_e_w_ = Eigen::Vector3d(x_pos, y_pos, 0.0);
+    }
   }
 
 
@@ -311,9 +319,9 @@ class GimbalInterface : public rclcpp::Node {
 
   geometry_msgs::msg::Vector3 _angles_to_message() {
     geometry_msgs::msg::Vector3 msg;
-    msg.x = desired_roll;
-    msg.y = desired_pitch;
-    msg.z = desired_yaw;
+    msg.x = desired_roll_;
+    msg.y = desired_pitch_;
+    msg.z = desired_yaw_;
     // TODO: channel and resolution.
     
     return msg;

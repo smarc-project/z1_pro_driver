@@ -7,19 +7,23 @@ import os
 
 
 def generate_launch_description():
-    # ------- TODO: Set up your topic names here. -----------
+    # ------- Set up your topic names here. -----------
     cmd_topic = "gimbal_cam_cmd"  # Input high-level CamCmd topic.
     gimbal_ctrl_topic = "gimbal_ctrl"  # Output low-level ctrl topic.
     gimbal_feedback_topic = "gimbal_feedback"  # Feedback from gimbal/camera topic.
     odom_topic = "smarc/odom"  # Odometry topic (orientation).
     geopoint_topic = "smarc/latlon"  # Global position topic.
-
     # -------------------------------------------------------
 
     # Namespace as command line argument.
     namespace_arg = DeclareLaunchArgument(
         "namespace", default_value="", description="Namespace for the nodes.")
     ns = [LaunchConfiguration("namespace"), "/gimbal"]
+
+    # Whether to use the vehicles altitude or constrain it to the 2d plane.
+    altitude_arg = DeclareLaunchArgument(
+        "use_vehicle_altitude", default_value='False', description="2D or 3D odom.")
+    use_altitude = LaunchConfiguration("use_vehicle_altitude")
 
     pkg_share = get_package_share_directory("z1_pro_driver")
     urdf_path = os.path.join(pkg_share, "urdf", "z1_pro_camera.urdf")
@@ -28,7 +32,7 @@ def generate_launch_description():
         robot_description = f.read()
 
     return LaunchDescription([
-        namespace_arg,
+        namespace_arg, altitude_arg,
         # Launch robot state publisher and gimbal joint publisher,
         Node(
             package="robot_state_publisher",
@@ -47,6 +51,7 @@ def generate_launch_description():
             output="screen",
             parameters=[{
                 "gimbal_feedback_topic": gimbal_feedback_topic,
+                "use_vehicle_altitude": use_altitude
             }],
         ),
 

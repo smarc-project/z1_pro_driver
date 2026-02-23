@@ -6,7 +6,7 @@ uint8 GLOBAL=1 # Yaw is assumed to be compass heading in NED (0-360 deg) with 0 
 uint8 RBG=0
 uint8 INFRARED=1
 
-# TODO: resolution struct.
+# TODO: resolution enum.
 
 uint8 frame # [0,1]
 
