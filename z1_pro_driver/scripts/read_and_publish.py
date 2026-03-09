@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Vector3
-from cam_gimbal_msgs.msg import Gcudata
+from z1_pro_msgs.msg import Gcudata
 
 import socket
 import binascii
