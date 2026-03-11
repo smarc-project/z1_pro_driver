@@ -78,5 +78,14 @@
     <origin xyz="0 -0.0261 0" rpy="0 0 0"/>
   </joint>
 
+<!-- Optical frame. Where x is right, y is down, origin top-left and z is "depth"-->
+<link name="z1_optical_frame"/>
+
+<joint name="optical_joint" type="fixed">
+  <parent link="z1_camera_link"/>
+  <child link="z1_optical_frame"/>
+  <origin xyz="0 0 0" rpy="-1.57079632679 0 -1.57079632679"/>
+</joint>
+
 </robot>
 
