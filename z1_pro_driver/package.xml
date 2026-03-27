@@ -4,11 +4,23 @@
   <name>z1_pro_driver</name>
   <version>0.0.0</version>
   <description>XF Z-1 Pro 3-axis gimbal camera driver</description>
-  <maintainer email="aldoterane@gmail.com">aldo</maintainer>
+  <maintainer email="aldot@kth.se">aldo</maintainer>
   <license>MIT</license>
 
+  <depend>rclcpp</depend>
+  <depend>nav_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>geographic_msgs</depend>
+  <depend>std_msgs</depend>
   <depend>z1_pro_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
 
+  <depend>eigen</depend>
+  <depend>geographiclib</depend>
+
+  <build_depend>pkg-config</build_depend>
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
