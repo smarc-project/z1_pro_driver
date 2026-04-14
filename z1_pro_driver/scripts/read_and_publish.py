@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Vector3
-from z1_pro_msgs.msg import Gcudata
+from z1_pro_msgs.msg import Gcudata, Topics
 
 import socket
 import binascii
@@ -22,14 +22,16 @@ class GimbalReadAndPublish(Node):
         super().__init__('read_and_publish')
 
         self.declare_parameter("camera_ip", "192.168.1.108")
-        self.declare_parameter("camera_port", 2332)
-        self.camera_ip = str(self.get_parameter("camera_ip").value)
-        self.camera_port = int(self.get_parameter("camera_port").value)
+        self.camera_ip = self.get_parameter("camera_ip").get_parameter_value().string_value
 
-        self.declare_parameter("gimbal_ctrl_topic", "gimbal_ctrl")
-        self.declare_parameter("gimbal_feedback_topic", "gimbal_feedback")
-        ctrl_topic = self.get_parameter("gimbal_ctrl_topic").value
-        feedback_topic = self.get_parameter("gimbal_feedback_topic").value
+        self.declare_parameter("camera_port", 2332)
+        self.camera_port = self.get_parameter("camera_port").get_parameter_value().integer_value
+
+        self.declare_parameter("gimbal_ctrl_topic", Topics.GIMBAL_CTRL_TOPIC)
+        ctrl_topic = self.get_parameter("gimbal_ctrl_topic").get_parameter_value().string_value
+
+        self.declare_parameter("gimbal_feedback_topic", Topics.GIMBAL_FEEDBACK_TOPIC)
+        feedback_topic = self.get_parameter("gimbal_feedback_topic").get_parameter_value().string_value
 
         # Create publisher
         self.publisher_ = self.create_publisher(Gcudata, feedback_topic, 10)
@@ -46,20 +48,32 @@ class GimbalReadAndPublish(Node):
         msg = Gcudata()
         data_from_camera = send_null_command()
 
+        if data_from_camera is None:
+            self.get_logger().error("Received no data from camera")
+            return
+        
+        try:
+            raw_op_mode = data_from_camera[5:6]
+            raw_relative_angle = data_from_camera[12:18]
+            raw_absolute_angle = data_from_camera[18:24]
+            raw_error_code = data_from_camera[41:43]
+            raw_camera_status = data_from_camera[64:66]
+        except IndexError:
+            self.get_logger().error("Received data from camera is too short")
+            return
+
         # Store operating mode
-        extracted_operating_mode = struct.unpack("B", data_from_camera[5:6])
+        extracted_operating_mode = struct.unpack("B", raw_op_mode)
         msg.operating_mode = extracted_operating_mode[0]
 
         # Store relative angle and convert to Evolos Coordinate system
-        extracted_relative_angle = struct.unpack("<hhh",
-                                                 data_from_camera[12:18])
+        extracted_relative_angle = struct.unpack("<hhh", raw_relative_angle)
         msg.relative_roll = extracted_relative_angle[1] / 100.0
         msg.relative_pitch = extracted_relative_angle[0] / 100.0
         msg.relative_yaw = -extracted_relative_angle[2] / 100.0  # FIXME
 
         # Store absolute angle
-        extracted_absolute_angle = struct.unpack("<hhh",
-                                                 data_from_camera[18:24])
+        extracted_absolute_angle = struct.unpack("<hhh", raw_absolute_angle)
         msg.absolute_roll = extracted_absolute_angle[0] / 100.0  # FIXME
         msg.absolute_pitch = extracted_absolute_angle[1] / 100.0
         msg.absolute_yaw = extracted_absolute_angle[2] / 100.0
@@ -67,25 +81,25 @@ class GimbalReadAndPublish(Node):
         # Store error code
         # B15: GCU Hardware error, B14: GNSS unpositioned, B13: MavLink communication frequency anomaly,
         # B12 - B8: Reserved, B7: Pod Hardware error, B6 - B0: Reserved
-        extracted_error_code = struct.unpack("<h", data_from_camera[41:43])
+        extracted_error_code = struct.unpack("<h", raw_error_code)
         msg.error_code = extracted_error_code[0]
 
         # Store camera status
-        extracted_camera_status = struct.unpack("<h", data_from_camera[64:66])
-        msg.osd = bool(getBit(extracted_camera_status[0],
-                              13))  # B13: 0 - OSD off, 1 - OSD on
-        msg.recording = bool(getBit(extracted_camera_status[0],
-                                    4))  # B4: 0 - not recording, 1 - recording
+        extracted_camera_status = struct.unpack("<h", raw_camera_status)
+        # B13: 0 - OSD off, 1 - OSD on
+        msg.osd = bool(getBit(extracted_camera_status[0], 13))  
+        # B4: 0 - not recording, 1 - recording
+        msg.recording = bool(getBit(extracted_camera_status[0], 4))  
 
         self.publisher_.publish(msg)
 
     def listener_callback(self, msg):
-        print(f"desired_gimbal_euler received: x:{msg.x}, {msg.y}, {msg.z}"
-              )  # print for debugging
-        send_euler_command(int(msg.x), int(msg.y),
-                           -int(msg.z))  # Send euler order
-        send_null_command(
-        )  # Seperate orders with a null command (required by gimbal)
+        print(f"desired_gimbal_euler received: x:{msg.x}, {msg.y}, {msg.z}")  # print for debugging
+        send_euler_command(int(msg.x),
+                           int(msg.y),
+                          -int(msg.z))  # Send euler order
+         # Seperate orders with a null command (required by gimbal)
+        send_null_command() 
 
 
 # This function returns the value of bit n
