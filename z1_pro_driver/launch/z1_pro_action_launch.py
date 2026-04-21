@@ -3,18 +3,8 @@ from launch.actions import DeclareLaunchArgument
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
 
-from z1_pro_msgs.msg import Topics as Z1ProTopics
-from smarc_msgs.msg import Topics as SmarcTopics
 
 def generate_launch_description():
-
-    gimbal_camera_ns_arg = DeclareLaunchArgument(
-        "gimbal_camera_topic_ns", default_value="gimbal_camera", description="Namespace for gimbal camera topics.")
-    gimbal_camera_ns = LaunchConfiguration("gimbal_camera_topic_ns")
-
-    gimbal_cmd_topic = [gimbal_camera_ns, '/', Z1ProTopics.GIMBAL_CMD_TOPIC]
-
-    
     # Namespace as command line argument.
     robot_name_arg = DeclareLaunchArgument(
         "robot_name", default_value="", description="Namespace for the nodes.")
@@ -33,7 +23,6 @@ def generate_launch_description():
         namespace=robot_name,
         output="screen",
         parameters=[{
-            "cmd_topic": gimbal_cmd_topic,
             "use_sim_time": use_sim_time
         }]
     )
@@ -41,6 +30,5 @@ def generate_launch_description():
     return LaunchDescription([
         robot_name_arg,
         sim_time_arg,
-        gimbal_camera_ns_arg,
         gimbal_action_server_node 
     ])
