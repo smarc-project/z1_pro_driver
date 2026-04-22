@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<robot name="z1_pro_camera">
+
+  <!-- Base that is attached to the robot. -->
+  <link name="z1_base_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><cylinder radius="0.03" length="0.02"/></geometry>
+    </visual>
+  </link>
+
+  <!-- Yaw frame, same as the base. -->
+  <link name="z1_yaw_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.02 0.02 0.02"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="yaw_joint" type="revolute">
+    <parent link="z1_base_link"/>
+    <child link="z1_yaw_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>  <!-- yaw about Z -->
+    <!-- TODO: This I don't know for sure... -->
+    <limit lower="-3.14159" upper="3.14159" effort="1.0" velocity="2.0"/>
+  </joint>
+
+  <!-- Roll frame, attached to yaw frame. -->
+  <link name="z1_roll_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.03 0.03 0.03"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="roll_joint" type="revolute">
+    <parent link="z1_yaw_link"/>
+    <child link="z1_roll_link"/>
+    <origin xyz="-0.01127 0 0.02163" rpy="0 -0.3490 0"/> <!-- 20 degree angle. -->
+    <axis xyz="1 0 0"/>  <!-- roll about X -->
+    <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="2.0"/>
+  </joint>
+
+  <!-- Pitch frame, attached to roll frame. -->
+  <link name="z1_pitch_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.02 0.02 0.02"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="pitch_joint" type="revolute">
+    <parent link="z1_roll_link"/>
+    <child link="z1_pitch_link"/>
+    <origin xyz="0.02096 0.0194 0.00736" rpy="0 0.3490 0"/>
+    <axis xyz="0 1 0"/>  <!-- pitch about Y -->
+    <limit lower="-1.5708" upper="1.5708" effort="1.0" velocity="2.0"/>
+  </joint>
+
+
+  <!-- Camera link -->
+  <link name="z1_camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="0.06 0.03 0.03"/></geometry>
+    </visual>
+  </link>
+
+  <joint name="camera_joint" type="fixed">
+    <parent link="z1_pitch_link"/>
+    <child link="z1_camera_link"/>
+    <origin xyz="0 -0.0261 0" rpy="3.14159 0 0"/>
+  </joint>
+
+<!-- Optical frame. Where x is right, y is down, origin top-left and z is "depth"-->
+<link name="z1_optical_frame"/>
+
+<joint name="optical_joint" type="fixed">
+  <parent link="z1_camera_link"/>
+  <child link="z1_optical_frame"/>
+  <origin xyz="0 0 0" rpy="-1.57079632679 0 -1.57079632679"/>
+</joint>
+
+</robot>
+

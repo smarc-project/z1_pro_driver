@@ -20,6 +20,9 @@ class GimbalJointPublisher : public rclcpp::Node {
     const std::string feedback_topic =
         this->get_parameter("gimbal_feedback_topic").as_string();
 
+    this->declare_parameter<bool>("camera_below_base", false);
+    camera_below_base = this->get_parameter("camera_below_base").as_bool();
+
     joint_pub_ = this->create_publisher<sensor_msgs::msg::JointState>(
         "joint_states", 10);
 
@@ -42,6 +45,7 @@ class GimbalJointPublisher : public rclcpp::Node {
   double roll_angle_ = 0.0;  // [rad]
   double pitch_angle_ = 0.0; // [rad]
   double yaw_angle_ = 0.0;   // [rad]
+  bool camera_below_base = false;
 
   rclcpp::Subscription<z1_pro_msgs::msg::Gcudata>::SharedPtr gcudata_sub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_pub_;
@@ -61,9 +65,15 @@ class GimbalJointPublisher : public rclcpp::Node {
   void TimerCallback() {
     // Build message and publish.
     joint_msg_.header.stamp = this->get_clock()->now();
-    joint_msg_.position[0] = yaw_angle_;
-    joint_msg_.position[1] = roll_angle_;
-    joint_msg_.position[2] = pitch_angle_;
+    if(camera_below_base) {
+      joint_msg_.position[0] = -yaw_angle_;
+      joint_msg_.position[1] = roll_angle_;
+      joint_msg_.position[2] = -pitch_angle_;
+    } else {
+      joint_msg_.position[0] = yaw_angle_;
+      joint_msg_.position[1] = roll_angle_;
+      joint_msg_.position[2] = pitch_angle_;
+    }
 
     joint_pub_->publish(joint_msg_);
   }
