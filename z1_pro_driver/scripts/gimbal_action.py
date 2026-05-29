@@ -43,6 +43,7 @@ class GimbalActionServer:
         self.carrier_odom : Odometry = Odometry() #Odom of carrier
         self._odom_subscriber = node.create_subscription(Odometry, odom_topic, self.odom_cb, 10)
 
+        self.geopoint_poi : GeoPoint = GeoPoint()
         self.desired_geopoint_local_coordinates : PointStamped = PointStamped()
         self.desired_rpy : Vector3 = Vector3()
         self._rpy_publisher = node.create_publisher(Vector3, Z1Topics.GIMBAL_CMD_TOPIC, 10)
@@ -130,6 +131,8 @@ class GimbalActionServer:
 
     def publish_rpy_and_fb(self):
         self.feedback.gimbal_mode = self.tracking_mode
+        self.feedback.gcudata = self.gcu_feedback
+        self.feedback.geopoint_poi = self.geopoint_poi
         self._feedback_publisher.publish(self.feedback)
 
         if self.tracking_mode == GimbalFeedback.GIMBAL_MODE_OFF:
@@ -255,10 +258,10 @@ class GimbalActionServer:
         """
         self.log(f"Received RPY goal: {goal_request}")
         try:
-            geopoint = GeoPoint()
-            geopoint.latitude = float(goal_request["latitude"])
-            geopoint.longitude = float(goal_request["longitude"])
-            geopoint.altitude = float(goal_request["altitude"])
+            self.geopoint_poi = GeoPoint()
+            self.geopoint_poi.latitude = float(goal_request["latitude"])
+            self.geopoint_poi.longitude = float(goal_request["longitude"])
+            self.geopoint_poi.altitude = float(goal_request["altitude"])
 
             #Get point in UTM
             geopoint_local_coordinates :PointStamped = convert_latlon_to_utm(geopoint) #pointStamped
