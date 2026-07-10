@@ -264,7 +264,7 @@ class GimbalActionServer:
             self.geopoint_poi.altitude = float(goal_request["altitude"])
 
             #Get point in UTM
-            geopoint_local_coordinates :PointStamped = convert_latlon_to_utm(geopoint) #pointStamped
+            geopoint_local_coordinates :PointStamped = convert_latlon_to_utm(self.geopoint_poi) #pointStamped
 
             #transform to odom frame
             transform = self._tf_buffer.lookup_transform(
