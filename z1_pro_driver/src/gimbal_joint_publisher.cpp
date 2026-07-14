@@ -35,8 +35,13 @@ class GimbalJointPublisher : public rclcpp::Node {
     joint_msg_.position = {0.0, 0.0, 0.0};
 
     // Setup a timer to publish the states faster than the camera's feedback.
+    this->declare_parameter<int>("publish_period_ms", 20);
+    const int publish_period_ms =
+        this->get_parameter("publish_period_ms").as_int();
+
     publish_timer_ = this->create_wall_timer(
-        20ms /*50Hz*/, std::bind(&GimbalJointPublisher::TimerCallback, this));
+        std::chrono::milliseconds(publish_period_ms),
+        std::bind(&GimbalJointPublisher::TimerCallback, this));
   }
 
 

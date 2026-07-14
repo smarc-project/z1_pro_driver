@@ -68,6 +68,15 @@ def generate_launch_description():
     ip = LaunchConfiguration("camera_ip")
     port = LaunchConfiguration("camera_port")
 
+
+    publish_period_arg = DeclareLaunchArgument(
+        "publish_period_ms",
+        default_value="20",
+        description="Period in milliseconds for publishing joint states (default 20ms = 50Hz)."
+    )
+    publish_period_ms = LaunchConfiguration("publish_period_ms")
+
+
     gimbal_joint_publisher_node = Node(
         package="z1_pro_driver",
         executable="gimbal_joint_publisher",
@@ -76,7 +85,8 @@ def generate_launch_description():
         output="screen",
         parameters=[{
             "gimbal_feedback_topic": Z1ProTopics.GIMBAL_GCU_FB_TOPIC,
-            "camera_below_base": camera_below_base
+            "camera_below_base": camera_below_base,
+            "publish_period_ms": publish_period_ms
         }]
     )
 
