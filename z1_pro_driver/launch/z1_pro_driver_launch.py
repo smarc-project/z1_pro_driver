@@ -119,6 +119,7 @@ def generate_launch_description():
         camera_below_base_arg,
         ip_arg,
         port_arg,
+        publish_period_arg, 
         OpaqueFunction(function=make_robot_state_publisher_node),
         gimbal_joint_publisher_node,
         read_and_publish_node,
