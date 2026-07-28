@@ -212,7 +212,7 @@ class GimbalActionServer:
                 yaw = math.degrees(yaw)
                 
                 #Slow down the movements of the camera to make it work even with the delays in the detecion pipeline
-                pitch *= 0.6
+                pitch *= 0.3
                 yaw *= 0.4
 
                 new_pitch = self.gcu_feedback.relative_pitch - pitch
