@@ -193,7 +193,7 @@ class GimbalActionServer:
 
             desired_rpy : Vector3 = Vector3()
             desired_rpy.x = 0.0 #roll
-            desired_rpy.y = target_pitch_deg
+            desired_rpy.y = -target_pitch_deg
             desired_rpy.z = -target_yaw_deg
 
         elif self.tracking_mode == GimbalFeedback.GIMBAL_MODE_ODOM_POI:
