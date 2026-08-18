@@ -242,7 +242,7 @@ class GimbalActionServer:
             desired_rpy = self.desired_rpy
 
         self._rpy_publisher.publish(desired_rpy)
-        self.log(f"Published RPY: {desired_rpy}")
+        #self.log(f"Published RPY: {desired_rpy}")
 
 
     def log(self, msg:str):
